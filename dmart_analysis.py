@@ -1,7 +1,8 @@
 # dmart_analysis.py
-
+import threading
+import sys
 from utils.data_loader import load_csv_to_df
-from utils.data_cleaner import clean_customer_df, clean_product_df, clean_sales_df, join_dataframes
+from utils.data_cleaner import clean_customer_df, clean_product_df, clean_sales_df, join_dataframes, show_missing_values
 from utils.analytics import (
     total_sales_by_category,
     highest_purchasing_customer,
@@ -22,32 +23,101 @@ def create_spark_session(app_name="DmartAnalysis"):
         .getOrCreate()
     return spark
 
-def main():
-    spark = create_spark_session()
+def input_with_timeout(prompt, timeout=30):
+    user_input = [None]
 
-    # Load data
+    def get_input():
+        user_input[0] = input(prompt)
+
+
+    thread = threading.Thread(target=get_input)
+    thread.daemon = True
+    thread.start()
+    thread.join(timeout)
+
+    if thread.is_alive():
+        print(f"\n\nNo input received in {timeout} seconds. Exiting program.\n")
+        sys.exit(0)
+
+    return user_input[0]
+
+def load_data(spark):
+    
+    #--------Load customer data
     customer_df = load_csv_to_df(spark, "Dmart-analysis-using-pyspark\data\Customer.csv")
+    show_missing_values(customer_df, "Customer DF")
     print("Customer DF Schema:")
     customer_df.printSchema()
     print("Customer DF Preview:")
     customer_df.show(5)
 
+    #-------- Load product data
     product_df = load_csv_to_df(spark, "Dmart-analysis-using-pyspark\data\Product.csv")
+
+    show_missing_values(product_df, "Product DF")
     print("Product DF Schema:")
     product_df.printSchema()
     print("Product DF Preview:")
     product_df.show(5)
-
+    
+    #---------Load sales data
     sales_df = load_csv_to_df(spark, "Dmart-analysis-using-pyspark\data\Sales.csv")
+    show_missing_values(sales_df, "Sales DF")
+
     print("Sales DF Schema:")
     sales_df.printSchema()
     print("Sales DF Preview:")
     sales_df.show(5)
+    return customer_df, product_df, sales_df
+
+def cleaned_data(spark,customer_df,product_df,sales_df):
+
+    #---------Clean and transform customer data
+    customer_df = clean_customer_df(customer_df)
+    show_missing_values(customer_df, "Customer DF after cleaning")
+    print("Customer DF after cleaning:")
+    customer_df.show(5)
+
+    # print row which has region value is unkown
+    print("Customer DF with Region as 'Unknown':")
+    print(customer_df.filter(customer_df.Region == "Unknown").show()) 
+
+   
+    
+    print("Customer DF Schema after cleaning:")
+    customer_df.printSchema()
+
+    #---------Clean and transform product data
+
+    product_df = clean_product_df(product_df)
+    print("Product DF after cleaning:")
+    product_df.show(5)
+    print("Product DF Schema after cleaning:")
+    product_df.printSchema()
+
+    #---------Clean and transform sales data
+    
+    sales_df = clean_sales_df(sales_df)
+    print("Sales DF after cleaning:")
+    sales_df.show(5)
+    print("Sales DF Schema after cleaning:")
+    sales_df.printSchema()
+
+    return customer_df, product_df, sales_df
+
+
+def main():
+    spark = create_spark_session()
+
+    # Load data
+    print("Loading data...\n")
+    customer_df,product_df,sales_df=load_data(spark)
+
 
     # Clean and transform data
-    customer_df = clean_customer_df(customer_df)
-    product_df = clean_product_df(product_df)
-    sales_df = clean_sales_df(sales_df)
+    print("\nCleaning and transforming data...\n")
+    customer_df,product_df,sales_df=cleaned_data(spark,customer_df,product_df,sales_df)
+
 
     # Join data
     joined_df = join_dataframes(sales_df, customer_df, product_df)
@@ -65,7 +135,7 @@ def main():
         print("9. Total Quantity by City")
         print("10. Top Segment by Profit Margin")
 
-        choice = input("Enter your choice: ")
+        choice = input_with_timeout("Enter your choice: ", timeout=30)
 
         if choice == "0":
             print("Exiting...")
