@@ -60,7 +60,7 @@ Dmart-analysis-using-pyspark/
 3. **Clone this repository**
 
    ```bash
-   git clone https://github.com/your-username/Dmart-analysis-using-pyspark.git
+   git clone https://github.com/MananGupta2603/Dmart-analysis-using-pyspark.git
    cd Dmart-analysis-using-pyspark
    ```
 
