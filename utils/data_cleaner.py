@@ -50,7 +50,7 @@ def clean_product_df(df):
     df = df.withColumnRenamed("Sub-Category", "SubCategory") \
            .withColumnRenamed("Product Name", "ProductName")
     
-    # Cast columns to appropriate types
+    # Remove duplicates based on key columns
     
     df = df.dropDuplicates(["ProductID"])
 
